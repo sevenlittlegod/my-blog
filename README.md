@@ -1,225 +1,564 @@
 # My Blog
 
-基于 Next.js 16 构建的个人博客，支持 Markdown 写作、评论系统、标签分类、全文搜索、RSS 订阅、暗色模式。
+这是一个基于 Next.js 16 App Router 的个人博客，支持 Markdown 写作、文章标签、评论审核、全文搜索、RSS、暗色模式、后台管理和访问统计。
+
+本项目按“低配服务器友好”的方式部署：**GitHub Actions 负责安装依赖和构建，2 核 2G 服务器只负责运行构建好的 standalone 产物**。这样可以绕开服务器上 `npm install`、`next build` 卡死的问题。
 
 ## 技术栈
 
 | 类别 | 技术 |
 |---|---|
-| 框架 | Next.js 16 (App Router) + TypeScript |
+| 前端框架 | Next.js 16 + React 19 + TypeScript |
 | 样式 | Tailwind CSS v4 |
 | 数据库 | PostgreSQL + Prisma 7 |
-| 认证 | Auth.js v5 (Credentials Provider) |
-| 内容 | react-markdown + @uiw/react-md-editor |
-| 暗色模式 | next-themes |
-| 部署 | 自建服务器（宝塔面板 + PM2） |
+| 认证 | Auth.js v5 |
+| 内容 | Markdown + `react-markdown` + `@uiw/react-md-editor` |
+| 进程管理 | PM2 |
+| 部署 | GitHub Actions + Next standalone + Nginx 反向代理 |
 
-## 功能
+## 为什么不能直接在 2C2G 服务器上构建
 
-- **Markdown 编辑器** — 所见即所得的 Markdown 写作体验，支持实时预览
-- **标签系统** — 文章分类与标签云，按标签筛选文章
-- **评论系统** — 支持嵌套回复，管理员审核后展示
-- **全文搜索** — 基于 SQL 的文章搜索
-- **RSS 订阅** — `/rss.xml` 自动生成 RSS Feed
-- **暗色模式** — 跟随系统 / 手动切换
-- **页面统计** — 内建页面浏览追踪与分析面板
-- **响应式设计** — 适配移动端与桌面端
+Next.js 生产构建会同时做编译、类型检查、压缩、路由分析和依赖追踪，Prisma、Tailwind、React 这些依赖也会增加内存压力。2 核 2G 的机器可以跑这个博客，但不适合承担完整构建流程。
 
-## 项目结构
+推荐部署链路是：
 
-```
-src/
-├── auth.ts                   # Auth.js v5 认证配置
-├── proxy.ts                  # 路由保护（/admin 需登录）
-├── lib/
-│   ├── prisma.ts             # Prisma 7 客户端
-│   └── auth-utils.ts         # 密码哈希与验证
-├── providers/
-│   └── ThemeProvider.tsx     # 暗色模式 Provider
-├── components/
-│   ├── Header.tsx            # 导航栏 + 暗色模式切换
-│   ├── Footer.tsx            # 页脚
-│   ├── PostCard.tsx          # 文章卡片
-│   ├── MarkdownRenderer.tsx  # Markdown 渲染组件
-│   └── CommentSection.tsx    # 评论组件（嵌套回复）
-├── app/
-│   ├── page.tsx              # 首页（最新文章 + 标签云）
-│   ├── posts/[slug]/         # 文章详情页
-│   ├── tags/                 # 标签列表 & 过滤
-│   ├── search/               # 搜索页
-│   ├── about/                # 关于页
-│   ├── rss.xml/              # RSS 订阅源
-│   ├── admin/                # 后台管理
-│   │   ├── login/            # 登录页
-│   │   ├── posts/new/        # 新建 / 编辑文章
-│   │   └── comments/         # 评论审核
-│   └── api/                  # REST API
-│       ├── posts/            # 文章 CRUD
-│       ├── tags/             # 标签管理
-│       ├── search/           # 全文搜索
-│       ├── comments/         # 评论提交与审核
-│       └── analytics/        # 页面浏览追踪
-└── generated/prisma/         # Prisma 生成的客户端
+```text
+本地写代码
+  -> push 到 GitHub main 分支
+  -> GitHub Actions 安装依赖、生成 Prisma Client、迁移数据库、构建 Next
+  -> 打包 .next/standalone
+  -> 通过 SSH 上传到服务器
+  -> PM2 重启 server.js
+  -> Nginx 反向代理到 127.0.0.1:3000
 ```
 
----
+服务器上不需要执行：
+
+```bash
+npm install
+npm ci
+npm run build
+```
 
 ## 本地开发
 
-### 前置条件
+### 1. 准备环境
 
-- Node.js 18+
-- PostgreSQL（本地安装或 Docker）
+本地建议使用：
 
-### 安装与启动
+- Node.js 20.9 或更高版本
+- PostgreSQL
+- npm
+
+Next.js 16 要求 Node.js 至少为 `20.9.0`。
+
+### 2. 安装依赖
 
 ```bash
-# 1. 安装依赖
 npm install
+```
 
-# 2. 复制环境变量文件并编辑
-cp .env.example .env
-# 编辑 .env，填入本地 PostgreSQL 连接信息
-# DATABASE_URL="postgresql://user:password@localhost:5432/myblog?schema=public"
+### 3. 配置环境变量
 
-# 3. 运行数据库迁移
-npx prisma migrate dev --name init
+在项目根目录创建 `.env`：
 
-# 4. 创建管理员账号
-npx tsx scripts/seed.ts
+```env
+DATABASE_URL="postgresql://postgres:your_password@127.0.0.1:5432/my_blog"
+AUTH_SECRET="replace-with-a-random-secret"
+AUTH_URL="http://localhost:3000"
 
-# 5. 启动开发服务器
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="admin123"
+ADMIN_NAME="Admin"
+```
+
+生成 `AUTH_SECRET` 可以用：
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 4. 初始化数据库
+
+```bash
+npx prisma migrate dev
+npm run db:seed
+```
+
+### 5. 启动开发服务器
+
+```bash
 npm run dev
 ```
 
-默认管理员账号：`admin@example.com` / `admin123`
+访问：
 
-可通过 `.env` 文件修改：
+- 前台：`http://localhost:3000`
+- 后台登录：`http://localhost:3000/admin/login`
 
-```
-ADMIN_EMAIL=your@email.com
-ADMIN_PASSWORD=yourpassword
-ADMIN_NAME=Your Name
-```
+默认管理员账号取决于 `.env` 里的 `ADMIN_EMAIL` 和 `ADMIN_PASSWORD`。
 
----
+## 服务器首次准备
 
-## 部署到生产环境
+下面以宝塔面板 + Ubuntu/Debian 类 Linux 服务器为例。其他 Linux 环境也类似。
 
-> 此项目部署到自建 Linux 服务器，使用宝塔面板管理 Nginx 反向代理 + PM2 守护进程，数据库使用服务器本地 PostgreSQL。
+### 1. 安装 Node.js 20
 
-### 第一步：服务器环境准备
+推荐使用 nvm：
 
 ```bash
-# 安装 Node.js 20（推荐使用 nvm）
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 source ~/.bashrc
 nvm install 20
-
-# 安装 PM2
-npm install -g pm2
-
-# 安装 tsx（用于运行 seed 脚本）
-npm install -g tsx
+nvm use 20
+node -v
 ```
 
-### 第二步：宝塔面板配置
+确认版本至少是 `v20.9.0`。
 
-#### 2a. 创建数据库
+### 2. 安装 PM2
 
-1. 宝塔面板 → **数据库** → **添加数据库**
-2. 填写数据库名（如 `myblog`）、用户名、密码
-3. 记下连接信息，格式：`postgresql://用户名:密码@localhost:5432/数据库名`
-
-#### 2b. 创建网站 + 反向代理
-
-1. 宝塔面板 → **网站** → **添加站点**，填入你的域名
-2. 进入网站 **设置 → 反向代理**
-3. 目标 URL：`http://127.0.0.1:3000`
-4. 保存
-
-### 第三步：首次部署
+服务器只需要 PM2 来守护 Node 进程：
 
 ```bash
-# SSH 到服务器
-ssh root@你的服务器IP
+npm install -g pm2
+```
 
-# 克隆项目
+### 3. 准备部署目录
+
+示例目录：
+
+```bash
 mkdir -p /www/wwwroot/my-blog
 cd /www/wwwroot/my-blog
-git clone https://github.com/你的用户名/my-blog.git .
-
-# 创建 .env 文件
-cat > .env << 'EOF'
-DATABASE_URL="postgresql://用户名:密码@localhost:5432/数据库名"
-AUTH_SECRET="<运行 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 生成>"
-AUTH_URL="https://你的域名"
-EOF
-
-# 安装依赖 + 生成 Prisma Client
-npm ci
-npx prisma generate
-
-# 运行数据库迁移
-npx prisma migrate deploy
-
-# 创建管理员账号
-npx tsx scripts/seed.ts
-
-# 构建并启动
-npm run build
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup   # 设置开机自启
 ```
 
-### 第四步：配置 GitHub Actions 自动部署
+后续 GitHub Actions 会把 standalone 产物上传到这个目录。
 
-项目已包含 GitHub Actions 工作流（`.github/workflows/deploy.yml`），每次推送到 `main` 分支自动：
+### 4. 创建 PostgreSQL 数据库
 
-1. 安装依赖 + 生成 Prisma Client
-2. 运行数据库迁移
-3. 构建 Next.js 应用
-4. SSH 部署到服务器
-5. PM2 重启应用
+在宝塔面板里创建 PostgreSQL 数据库，记下：
 
-在 GitHub 仓库中，进入 **Settings → Secrets and variables → Actions**，添加以下 Secrets：
+- 数据库名
+- 用户名
+- 密码
+- 端口，通常是 `5432`
 
-| Secret | 说明 |
-|---|---|
-| `SSH_HOST` | 服务器 IP 地址 |
-| `SSH_USER` | SSH 用户名（通常是 root） |
-| `SSH_KEY` | SSH 私钥内容（`cat ~/.ssh/id_rsa`） |
-| `SSH_TARGET` | 项目路径，如 `/www/wwwroot/my-blog` |
-| `DATABASE_URL` | PostgreSQL 连接字符串 |
-| `AUTH_SECRET` | 32 字节随机密钥 |
-| `AUTH_URL` | `https://你的域名` |
+假设数据库信息如下：
 
-配置完成后，每次 `git push` 到 `main` 分支即可自动部署。
+```text
+数据库名：my_blog
+用户名：my_blog_user
+密码：your_db_password
+地址：127.0.0.1
+端口：5432
+```
 
-### 第五步：SSL 证书
+### 5. 在服务器部署目录创建 `.env`
 
-1. 宝塔面板 → **网站** → 点击你的站点
-2. **SSL → Let's Encrypt** → 申请证书
-3. 勾选"强制 HTTPS"
-
-### 第六步：首次登录
-
-1. 打开 `https://你的域名`
-2. 访问 `/admin/login`，使用管理员账号登录
-3. 开始写文章！
-
-### 后续更新流程
+进入部署目录：
 
 ```bash
-# 本地开发完成后推送，GitHub Actions 自动部署
-git add .
-git commit -m "your message"
-git push
-
-# 如果需要变更数据库 schema：
-npx prisma migrate dev --name describe_your_change
-git add prisma/migrations
-git commit -m "db migration: describe_your_change"
-git push
+cd /www/wwwroot/my-blog
 ```
+
+创建 `.env`：
+
+```bash
+cat > .env << 'EOF'
+DATABASE_URL="postgresql://my_blog_user:your_db_password@127.0.0.1:5432/my_blog"
+AUTH_SECRET="replace-with-a-random-secret"
+AUTH_URL="https://your-domain.com"
+
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="change-this-password"
+ADMIN_NAME="Admin"
+EOF
+```
+
+注意：
+
+- 服务器 `.env` 里的数据库地址用 `127.0.0.1:5432`。
+- `AUTH_URL` 改成你的正式域名。
+- `.env` 不要提交到 Git。
+- GitHub Actions 上传文件时会排除 `.env`，不会覆盖服务器上的生产环境变量。
+
+## GitHub Actions 自动部署
+
+项目已经包含 `.github/workflows/deploy.yml`。推送到 `main` 分支后会自动部署。
+
+### 自动部署会做什么
+
+每次 push 到 `main` 后，Actions 会：
+
+1. 拉取代码。
+2. 安装 Node.js 20。
+3. 通过 SSH 隧道连接服务器本机 PostgreSQL。
+4. 执行 `npm ci`。
+5. 执行 `npx prisma generate`。
+6. 执行 `npx prisma migrate deploy`。
+7. 执行 `npm run build`。
+8. 执行 `npm run package:standalone`。
+9. 上传 `.next/standalone` 到服务器。
+10. 用 PM2 reload 或 start 应用。
+
+重点：服务器不会执行 `npm ci`，也不会执行 `npm run build`。
+
+### 需要配置的 GitHub Secrets
+
+进入 GitHub 仓库：
+
+```text
+Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+添加这些 secrets：
+
+| Secret | 示例 | 说明 |
+|---|---|---|
+| `SSH_HOST` | `1.2.3.4` | 服务器 IP |
+| `SSH_USER` | `root` | SSH 用户 |
+| `SSH_KEY` | 私钥全文 | 用于登录服务器的 SSH 私钥 |
+| `SSH_TARGET` | `/www/wwwroot/my-blog` | 服务器部署目录 |
+| `DATABASE_URL` | `postgresql://my_blog_user:your_db_password@127.0.0.1:5433/my_blog` | Actions 里通过 SSH 隧道访问数据库 |
+| `AUTH_SECRET` | 随机 32 字节字符串 | Auth.js 密钥 |
+| `AUTH_URL` | `https://your-domain.com` | 正式站点地址 |
+
+这里最容易填错的是 `DATABASE_URL`。
+
+服务器 `.env` 用：
+
+```env
+DATABASE_URL="postgresql://my_blog_user:your_db_password@127.0.0.1:5432/my_blog"
+```
+
+GitHub Secret 里的 `DATABASE_URL` 用：
+
+```env
+postgresql://my_blog_user:your_db_password@127.0.0.1:5433/my_blog
+```
+
+原因是 Actions 不是在服务器上运行的。workflow 会打开一个 SSH 隧道，把 GitHub Runner 的 `127.0.0.1:5433` 转发到服务器的 `127.0.0.1:5432`。
+
+### SSH 私钥怎么准备
+
+如果你本机还没有 SSH key，可以生成一个：
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-my-blog"
+```
+
+把公钥加入服务器：
+
+```bash
+ssh-copy-id root@your-server-ip
+```
+
+或者手动把 `.pub` 文件内容追加到服务器的：
+
+```bash
+~/.ssh/authorized_keys
+```
+
+把私钥内容填到 GitHub Secret `SSH_KEY`。私钥通常类似：
+
+```text
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+不要把私钥提交到仓库。
+
+## 首次部署流程
+
+### 1. 确认服务器目录和 `.env`
+
+服务器上确认：
+
+```bash
+cd /www/wwwroot/my-blog
+ls -la
+cat .env
+```
+
+确认 `.env` 里有：
+
+```env
+DATABASE_URL="postgresql://...@127.0.0.1:5432/..."
+AUTH_SECRET="..."
+AUTH_URL="https://your-domain.com"
+```
+
+### 2. 推送代码到 main
+
+本地执行：
+
+```bash
+git add .
+git commit -m "deploy with standalone"
+git push origin main
+```
+
+然后到 GitHub 仓库的 Actions 页面查看部署日志。
+
+### 3. 部署成功后检查服务器文件
+
+服务器上应该能看到：
+
+```bash
+cd /www/wwwroot/my-blog
+ls
+```
+
+关键文件包括：
+
+```text
+server.js
+.next/
+public/
+node_modules/
+ecosystem.config.js
+.env
+```
+
+这里的 `node_modules` 是 Next standalone 自动追踪出来的最小运行依赖，不是服务器上 `npm install` 生成的完整依赖。
+
+### 4. 检查 PM2 状态
+
+```bash
+pm2 list
+pm2 logs my-blog
+```
+
+如果没有启动，可以手动启动一次：
+
+```bash
+cd /www/wwwroot/my-blog
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+设置开机自启：
+
+```bash
+pm2 startup
+```
+
+按照命令输出的提示再执行一次即可。
+
+### 5. 本机端口检查
+
+服务器上执行：
+
+```bash
+curl http://127.0.0.1:3000
+```
+
+如果能返回 HTML，说明 Next 应用已经跑起来。
+
+## Nginx 反向代理
+
+在宝塔面板中：
+
+1. 添加站点，绑定你的域名。
+2. 进入站点设置。
+3. 配置反向代理。
+4. 目标 URL 填：
+
+```text
+http://127.0.0.1:3000
+```
+
+也可以手写 Nginx 配置：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+SSL 证书可以在宝塔面板里用 Let's Encrypt 申请。申请后建议开启强制 HTTPS。
+
+## 后续更新流程
+
+日常开发只需要：
+
+```bash
+git add .
+git commit -m "update blog"
+git push origin main
+```
+
+然后等 GitHub Actions 自动部署完成。
+
+如果修改了 Prisma schema：
+
+```bash
+npx prisma migrate dev --name describe_your_change
+git add prisma
+git commit -m "db migration: describe your change"
+git push origin main
+```
+
+Actions 会通过 SSH 隧道执行：
+
+```bash
+npx prisma migrate deploy
+```
+
+数据库仍然只监听服务器本机，不需要暴露公网。
+
+## 手动部署备用方案
+
+如果 GitHub Actions 暂时不可用，也可以在本地或一台内存更大的机器上构建，然后上传。
+
+本地构建：
+
+```bash
+npm ci
+npm run build
+npm run package:standalone
+```
+
+上传 `.next/standalone` 里的内容到服务器部署目录：
+
+```bash
+rsync -avz --delete .next/standalone/ root@your-server-ip:/www/wwwroot/my-blog/
+rsync -avz ecosystem.config.js root@your-server-ip:/www/wwwroot/my-blog/ecosystem.config.js
+```
+
+服务器重启：
+
+```bash
+cd /www/wwwroot/my-blog
+pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+pm2 save
+```
+
+## 常见问题
+
+### 1. GitHub Actions 里数据库连接失败
+
+如果看到类似 `P1001 Can't reach database server`，优先检查 GitHub Secret `DATABASE_URL`。
+
+Actions 里应该是：
+
+```env
+postgresql://用户名:密码@127.0.0.1:5433/数据库名
+```
+
+不是 `5432`。
+
+还要确认服务器 PostgreSQL 正在监听 `127.0.0.1:5432`。
+
+### 2. GitHub Actions 里 SSH tunnel 失败
+
+检查：
+
+- `SSH_HOST` 是否是正确服务器 IP。
+- `SSH_USER` 是否能 SSH 登录。
+- `SSH_KEY` 是否是私钥全文。
+- 服务器 `~/.ssh/authorized_keys` 是否包含对应公钥。
+- 服务器安全组或防火墙是否允许 22 端口。
+
+### 3. PM2 日志显示找不到 `server.js`
+
+说明 standalone 产物没有正确上传。检查 Actions 里这两步是否成功：
+
+```bash
+npm run build
+npm run package:standalone
+```
+
+服务器部署目录里应该直接存在：
+
+```text
+/www/wwwroot/my-blog/server.js
+```
+
+### 4. 网站 502 Bad Gateway
+
+按顺序检查：
+
+```bash
+pm2 list
+pm2 logs my-blog
+curl http://127.0.0.1:3000
+```
+
+如果 `curl` 不通，先修 PM2 或环境变量。如果 `curl` 通但域名不通，检查 Nginx 反向代理。
+
+### 5. 登录失败或回调地址不对
+
+检查服务器 `.env`：
+
+```env
+AUTH_URL="https://your-domain.com"
+AUTH_SECRET="..."
+```
+
+修改后重启：
+
+```bash
+pm2 reload my-blog
+```
+
+### 6. 服务器内存还是紧张
+
+当前 PM2 配置设置了：
+
+```js
+max_memory_restart: "450M"
+```
+
+如果你的访问量很小但仍然重启频繁，可以查看：
+
+```bash
+pm2 monit
+pm2 logs my-blog
+free -h
+```
+
+确认服务器上没有同时跑其他高内存服务。这个项目的构建已经不在服务器上执行，正常访问量下 2C2G 是有机会稳定运行的。
+
+## 相关脚本
+
+| 命令 | 说明 |
+|---|---|
+| `npm run dev` | 本地开发 |
+| `npm run build` | 生产构建 |
+| `npm run package:standalone` | 把 `public` 和 `.next/static` 复制进 standalone 包 |
+| `npm run start` | 使用 `next start` 启动，主要用于非 standalone 场景 |
+| `npm run db:migrate` | 执行 `prisma migrate deploy` |
+| `npm run db:seed` | 创建管理员账号或种子数据 |
+
+## 部署后的目录结构
+
+服务器部署目录大致如下：
+
+```text
+/www/wwwroot/my-blog/
+├── .env
+├── server.js
+├── ecosystem.config.js
+├── package.json
+├── public/
+├── .next/
+│   └── static/
+└── node_modules/
+```
+
+这是 Next standalone 的运行目录。不要在这里执行 `npm install`，也不要把它当作完整源码目录使用。

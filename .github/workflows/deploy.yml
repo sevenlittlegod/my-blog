@@ -8,6 +8,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      AUTH_URL: ${{ secrets.AUTH_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -16,13 +20,19 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: Open PostgreSQL SSH tunnel
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -fN -L 5433:127.0.0.1:5432 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+
       - run: npm ci
 
       - run: npx prisma generate
 
       - run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - run: npm run build
 
@@ -31,7 +41,7 @@ jobs:
       - uses: easingthemes/ssh-deploy@v5
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          ARGS: "-rlgoDzvc -i --exclude='.env'"
+          ARGS: "-rlgoDzvc -i --delete --exclude='.env'"
           SOURCE: ".next/standalone/ ecosystem.config.js"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USER }}
