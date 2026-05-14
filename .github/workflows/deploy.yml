@@ -26,11 +26,13 @@ jobs:
 
       - run: npm run build
 
+      - run: npm run package:standalone
+
       - uses: easingthemes/ssh-deploy@v5
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          ARGS: "-rlgoDzvc -i --delete"
-          SOURCE: ".next/ public/ package.json package-lock.json node_modules/ prisma/ ecosystem.config.js next.config.ts"
+          ARGS: "-rlgoDzvc -i --exclude='.env'"
+          SOURCE: ".next/standalone/ ecosystem.config.js"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USER }}
           TARGET: ${{ secrets.SSH_TARGET }}
@@ -42,6 +44,5 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ secrets.SSH_TARGET }}
-            npm ci --omit=dev
             pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
             pm2 save

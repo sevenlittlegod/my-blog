@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  productionBrowserSourceMaps: false,
+  experimental: {
+    preloadEntriesOnStart: false,
+    serverSourceMaps: false,
+    webpackMemoryOptimizations: true,
+  },
 };
 
 export default nextConfig;
