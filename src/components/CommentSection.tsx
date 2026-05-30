@@ -31,7 +31,11 @@ export function CommentSection({ postId }: { postId: string }) {
   }, [postId]);
 
   useEffect(() => {
-    fetchComments();
+    const timer = window.setTimeout(() => {
+      void fetchComments();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [fetchComments]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,10 +58,10 @@ export function CommentSection({ postId }: { postId: string }) {
       setContent("");
       setName("");
       setEmail("");
-      setMessage("Comment submitted and pending approval.");
+      setMessage("评论已提交，等待审核。");
       fetchComments();
     } else {
-      setMessage("Failed to submit. Please try again.");
+      setMessage("提交失败，请稍后再试。");
     }
     setSubmitting(false);
   }
@@ -87,71 +91,71 @@ export function CommentSection({ postId }: { postId: string }) {
   return (
     <section className="flex flex-col gap-6">
       <h2 className="text-xl font-semibold">
-        Comments ({comments.length})
+        评论（{comments.length}）
       </h2>
 
       {/* Comment List */}
       <div className="flex flex-col gap-4">
         {loading ? (
-          <p className="text-sm text-gray-500">Loading comments...</p>
+          <p className="text-sm text-stone-500">正在加载评论...</p>
         ) : comments.length === 0 ? (
-          <p className="text-sm text-gray-500">No comments yet. Be the first!</p>
+          <p className="text-sm text-stone-500">暂无评论，欢迎留下第一条。</p>
         ) : (
           comments.map((comment) => (
             <div key={comment.id} className="flex flex-col gap-3">
-              <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+              <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-950">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{comment.authorName}</span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(comment.createdAt).toLocaleDateString()}
+                  <span className="text-xs text-stone-500">
+                    {new Date(comment.createdAt).toLocaleDateString("zh-CN")}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
                   {comment.content}
                 </p>
                 <button
                   onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="mt-2 text-xs text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
                 >
-                  {replyTo === comment.id ? "Cancel" : "Reply"}
+                  {replyTo === comment.id ? "取消" : "回复"}
                 </button>
 
                 {replyTo === comment.id && (
-                  <div className="mt-3 flex flex-col gap-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                  <div className="mt-3 flex flex-col gap-2 border-l-2 border-stone-200 pl-4 dark:border-stone-700">
                     <input
                       value={replyName}
                       onChange={(e) => setReplyName(e.target.value)}
-                      className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Your name"
+                      className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-stone-700 dark:bg-stone-950"
+                      placeholder="你的名字"
                     />
                     <textarea
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
                       rows={2}
-                      className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Write a reply..."
+                      className="rounded-md border border-stone-300 bg-white px-2 py-1 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-stone-700 dark:bg-stone-950"
+                      placeholder="写下回复..."
                     />
                     <button
                       onClick={() => handleReply(comment.id)}
-                      className="self-end rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-3 py-1 text-xs font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                      className="self-end rounded-md bg-teal-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-teal-700"
                     >
-                      Reply
+                      回复
                     </button>
                   </div>
                 )}
 
                 {/* Nested Replies */}
                 {comment.replies?.length > 0 && (
-                  <div className="mt-3 pl-6 border-l-2 border-gray-200 dark:border-gray-700 flex flex-col gap-3">
+                  <div className="mt-3 flex flex-col gap-3 border-l-2 border-stone-200 pl-6 dark:border-stone-700">
                     {comment.replies.map((reply) => (
                       <div key={reply.id}>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{reply.authorName}</span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(reply.createdAt).toLocaleDateString()}
+                          <span className="text-xs text-stone-500">
+                            {new Date(reply.createdAt).toLocaleDateString("zh-CN")}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                        <p className="mt-1 text-sm text-stone-700 dark:text-stone-300">
                           {reply.content}
                         </p>
                       </div>
@@ -165,22 +169,22 @@ export function CommentSection({ postId }: { postId: string }) {
       </div>
 
       {/* Comment Form */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-800 pt-6">
-        <h3 className="text-lg font-semibold">Leave a Comment</h3>
-        <div className="flex gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-stone-200 pt-6 dark:border-stone-800">
+        <h3 className="text-lg font-semibold">留下评论</h3>
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Your name *"
+            className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+            placeholder="你的名字 *"
           />
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Email (optional)"
+            className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+            placeholder="邮箱（可选）"
           />
         </div>
         <textarea
@@ -188,18 +192,18 @@ export function CommentSection({ postId }: { postId: string }) {
           onChange={(e) => setContent(e.target.value)}
           required
           rows={3}
-          className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Write a comment... *"
+          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+          placeholder="写下评论... *"
         />
         {message && (
-          <p className="text-sm text-gray-500">{message}</p>
+          <p className="text-sm text-stone-500">{message}</p>
         )}
         <button
           type="submit"
           disabled={submitting}
-          className="self-end rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 transition-colors"
+          className="self-end rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
         >
-          {submitting ? "Submitting..." : "Submit Comment"}
+          {submitting ? "提交中..." : "提交评论"}
         </button>
       </form>
     </section>

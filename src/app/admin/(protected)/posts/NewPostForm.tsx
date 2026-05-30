@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import MDEditor from "@uiw/react-md-editor";
+import { slugify } from "@/lib/slug";
 
 interface Tag {
   id: string;
@@ -10,16 +11,17 @@ interface Tag {
   slug: string;
 }
 
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 100);
+interface PostFormPost {
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string;
+  coverImage: string;
+  published: boolean;
+  tags?: Tag[];
 }
 
-export function NewPostForm({ post }: { post?: any }) {
+export function NewPostForm({ post }: { post?: PostFormPost }) {
   const router = useRouter();
   const isEditing = !!post;
 
@@ -46,8 +48,9 @@ export function NewPostForm({ post }: { post?: any }) {
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newTitle = e.target.value;
     setTitle(newTitle);
-    if (!isEditing || slug === generateSlug(title)) {
-      setSlug(generateSlug(newTitle));
+    const previousSlug = title.trim() ? slugify(title) : "";
+    if (!isEditing || slug === previousSlug) {
+      setSlug(newTitle.trim() ? slugify(newTitle) : "");
     }
   }
 
@@ -68,11 +71,15 @@ export function NewPostForm({ post }: { post?: any }) {
       });
       if (res.ok) {
         const newTag = await res.json();
-        setAllTags((prev) => [...prev, newTag].sort((a, b) => a.name.localeCompare(b.name)));
+        setAllTags((prev) =>
+          [...prev, newTag].sort((a, b) => a.name.localeCompare(b.name))
+        );
         setSelectedTags((prev) => [...prev, newTag.id]);
         setNewTagName("");
       }
-    } catch {}
+    } catch {
+      setError("标签创建失败，请稍后再试");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -81,7 +88,7 @@ export function NewPostForm({ post }: { post?: any }) {
     setError("");
 
     if (!title.trim() || !slug.trim() || !content.trim()) {
-      setError("Title, slug, and content are required");
+      setError("标题、链接别名和正文不能为空");
       setSaving(false);
       return;
     }
@@ -94,7 +101,6 @@ export function NewPostForm({ post }: { post?: any }) {
       coverImage: coverImage.trim(),
       published,
       tagIds: selectedTags,
-      ...(isEditing ? {} : {}),
     };
 
     try {
@@ -109,7 +115,7 @@ export function NewPostForm({ post }: { post?: any }) {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to save post");
+        setError(data.error || "保存失败，请稍后再试");
         setSaving(false);
         return;
       }
@@ -117,7 +123,7 @@ export function NewPostForm({ post }: { post?: any }) {
       router.push("/admin");
       router.refresh();
     } catch {
-      setError("An error occurred");
+      setError("发生错误，请稍后再试");
       setSaving(false);
     }
   }
@@ -125,59 +131,59 @@ export function NewPostForm({ post }: { post?: any }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {error && (
-        <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
 
       {/* Title */}
       <div>
-        <label className="block text-sm font-medium mb-1">Title</label>
+        <label className="block text-sm font-medium mb-1">标题</label>
         <input
           value={title}
           onChange={handleTitleChange}
-          className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Post title"
+          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+          placeholder="输入文章标题"
         />
       </div>
 
       {/* Slug */}
       <div>
-        <label className="block text-sm font-medium mb-1">Slug</label>
+        <label className="block text-sm font-medium mb-1">链接别名</label>
         <input
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
-          className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="post-slug"
+          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 font-mono text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+          placeholder="article-slug"
         />
       </div>
 
       {/* Excerpt */}
       <div>
-        <label className="block text-sm font-medium mb-1">Excerpt</label>
+        <label className="block text-sm font-medium mb-1">摘要</label>
         <textarea
           value={excerpt}
           onChange={(e) => setExcerpt(e.target.value)}
           rows={2}
-          className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Brief description for previews..."
+          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+          placeholder="用于列表和分享的简短说明"
         />
       </div>
 
       {/* Cover Image URL */}
       <div>
-        <label className="block text-sm font-medium mb-1">Cover Image URL</label>
+        <label className="block text-sm font-medium mb-1">封面图地址</label>
         <input
           value={coverImage}
           onChange={(e) => setCoverImage(e.target.value)}
-          className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
           placeholder="https://example.com/image.jpg"
         />
       </div>
 
       {/* Tags */}
       <div>
-        <label className="block text-sm font-medium mb-1">Tags</label>
+        <label className="block text-sm font-medium mb-1">标签</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {allTags.map((tag) => (
             <button
@@ -186,8 +192,8 @@ export function NewPostForm({ post }: { post?: any }) {
               onClick={() => toggleTag(tag.id)}
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 selectedTags.includes(tag.id)
-                  ? "bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
-                  : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400"
+                  ? "bg-teal-100 dark:bg-teal-900/40 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300"
+                  : "bg-white dark:bg-stone-950 border-stone-300 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:border-stone-400"
               }`}
             >
               {tag.name}
@@ -198,22 +204,22 @@ export function NewPostForm({ post }: { post?: any }) {
           <input
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="New tag name..."
+            className="flex-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 dark:border-stone-700 dark:bg-stone-950 dark:focus:ring-teal-900/40"
+            placeholder="新标签名称"
           />
           <button
             type="button"
             onClick={createTag}
-            className="rounded-md bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="rounded-md bg-stone-100 px-3 py-1.5 text-sm transition-colors hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700"
           >
-            Add
+            添加
           </button>
         </div>
       </div>
 
       {/* Content - Markdown Editor */}
       <div>
-        <label className="block text-sm font-medium mb-1">Content</label>
+        <label className="block text-sm font-medium mb-1">正文</label>
         <MDEditor
           value={content}
           onChange={(val) => setContent(val || "")}
@@ -223,16 +229,16 @@ export function NewPostForm({ post }: { post?: any }) {
       </div>
 
       {/* Publish Toggle */}
-      <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 pt-4">
+      <div className="flex flex-col gap-4 border-t border-stone-200 pt-4 dark:border-stone-800 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={published}
             onChange={(e) => setPublished(e.target.checked)}
-            className="rounded border-gray-300 dark:border-gray-700"
+            className="rounded border-stone-300 dark:border-stone-700"
           />
           <span className="text-sm font-medium">
-            {published ? "Published" : "Draft"}
+            {published ? "已发布" : "保存为草稿"}
           </span>
         </label>
 
@@ -240,16 +246,16 @@ export function NewPostForm({ post }: { post?: any }) {
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="rounded-md border border-stone-300 px-4 py-2 text-sm transition-colors hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
           >
-            Cancel
+            取消
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 transition-colors"
+            className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700 disabled:opacity-50"
           >
-            {saving ? "Saving..." : isEditing ? "Update Post" : "Create Post"}
+            {saving ? "保存中..." : isEditing ? "更新文章" : "创建文章"}
           </button>
         </div>
       </div>

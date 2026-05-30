@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 10));
   const tag = searchParams.get("tag");
-  const published = searchParams.get("published") !== "false";
+  const session = await auth();
+  const isAdmin = session?.user?.role === "ADMIN";
+  const published =
+    isAdmin && searchParams.get("published") === "false" ? false : true;
 
   const where = {
     published,
@@ -51,7 +54,10 @@ export async function GET(request: NextRequest) {
 }
 
 export const POST = auth(async (request) => {
-  if (!request.auth) {
+  const userId =
+    request.auth?.user?.role === "ADMIN" ? request.auth.user.id : undefined;
+
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -60,29 +66,38 @@ export const POST = auth(async (request) => {
 
   if (!title || !slug || !content) {
     return NextResponse.json(
-      { error: "Title, slug, and content are required" },
+      { error: "标题、链接别名和正文不能为空" },
       { status: 400 }
     );
   }
 
-  const post = await prisma.post.create({
-    data: {
-      title,
-      slug,
-      content,
-      excerpt: excerpt || "",
-      coverImage: coverImage || "",
-      published: published ?? false,
-      authorId: request.auth.user!.id!,
-      tags: tagIds?.length
-        ? { create: tagIds.map((tagId: string) => ({ tagId })) }
-        : undefined,
-    },
-    include: {
-      author: { select: { name: true, email: true } },
-      tags: { include: { tag: true } },
-    },
-  });
+  const post = await prisma.post
+    .create({
+      data: {
+        title,
+        slug,
+        content,
+        excerpt: excerpt || "",
+        coverImage: coverImage || "",
+        published: published ?? false,
+        authorId: userId,
+        tags: tagIds?.length
+          ? { create: tagIds.map((tagId: string) => ({ tagId })) }
+          : undefined,
+      },
+      include: {
+        author: { select: { name: true, email: true } },
+        tags: { include: { tag: true } },
+      },
+    })
+    .catch(() => null);
+
+  if (!post) {
+    return NextResponse.json(
+      { error: "保存失败，可能是链接别名已经存在" },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json({
     ...post,

@@ -3,7 +3,7 @@ import { SearchContent } from "./SearchContent";
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-gray-500">Loading search...</div>}>
+    <Suspense fallback={<div className="text-sm text-stone-500">正在加载搜索...</div>}>
       <SearchContent />
     </Suspense>
   );

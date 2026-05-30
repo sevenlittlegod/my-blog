@@ -4,6 +4,10 @@ import { verifyPassword } from "./lib/auth-utils";
 import { prisma } from "./lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
+  session: {
+    strategy: "jwt",
+  },
   providers: [
     Credentials({
       credentials: {
@@ -28,12 +32,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         token.role = (user as { role?: string }).role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
+        session.user.id = (token.id as string) ?? token.sub;
         (session.user as { role?: string }).role = token.role as string;
       }
       return session;

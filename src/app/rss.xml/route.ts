@@ -27,10 +27,10 @@ export async function GET() {
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>My Blog</title>
+    <title>林葛由</title>
     <link>${baseUrl}</link>
-    <description>A personal blog about technology, programming, and life.</description>
-    <language>en</language>
+    <description>林葛由的个人博客，记录技术、编程和生活里的思考。</description>
+    <language>zh-CN</language>
     <lastBuildDate>${now}</lastBuildDate>
     <atom:link href="${baseUrl}/rss.xml" rel="self" type="application/rss+xml"/>
 ${items}

@@ -1,22 +1,19 @@
-export const metadata = { title: "About" };
+export const metadata = { title: "关于" };
 
 export default function AboutPage() {
   return (
-    <div className="flex flex-col gap-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">About</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <h1 className="text-3xl font-semibold tracking-tight">关于林葛由</h1>
       <div className="prose dark:prose-invert">
         <p>
-          Welcome to my blog! I write about technology, programming, and
-          building things on the web.
+          这里是林葛由的个人博客。我会记录技术实践、编程经验，以及把想法落地时遇到的细节。
         </p>
         <p>
-          This blog is built with Next.js, Prisma, PostgreSQL, and Tailwind CSS.
-          It features a custom admin dashboard, markdown content management,
-          comments, and more.
+          这个站点基于 Next.js、Prisma、PostgreSQL 和 Tailwind CSS 构建，支持
+          Markdown 写作、标签、搜索、评论审核和后台管理。
         </p>
         <p>
-          Feel free to explore my posts, leave comments, and reach out if you
-          have questions or ideas to share.
+          欢迎浏览文章，也欢迎在评论里留下问题、建议或新的想法。
         </p>
       </div>
     </div>

@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const tag = await prisma.tag.findUnique({ where: { slug } });
   if (!tag) return { title: "Not Found" };
-  return { title: `Posts tagged "${tag.name}"` };
+  return { title: `标签：${tag.name}` };
 }
 
 export default async function TagPage({ params }: Props) {
@@ -47,11 +47,11 @@ export default async function TagPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">
-        Posts tagged &ldquo;{tag.name}&rdquo;
+      <h1 className="text-3xl font-semibold tracking-tight">
+        标签：{tag.name}
       </h1>
       {posts.length === 0 ? (
-        <p className="text-gray-500">No posts with this tag.</p>
+        <p className="text-stone-500">这个标签下还没有文章。</p>
       ) : (
         <div className="grid gap-6">
           {posts.map((post) => (

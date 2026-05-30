@@ -41,7 +41,7 @@ export function AdminCommentList({ initialComments }: { initialComments: Comment
   }
 
   if (comments.length === 0) {
-    return <p className="text-gray-500 text-sm">No comments yet.</p>;
+    return <p className="text-sm text-stone-500">还没有评论。</p>;
   }
 
   return (
@@ -49,67 +49,67 @@ export function AdminCommentList({ initialComments }: { initialComments: Comment
       {comments.map((comment) => (
         <div
           key={comment.id}
-          className="rounded-lg border border-gray-200 dark:border-gray-800 p-4"
+          className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-950"
         >
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{comment.authorName}</span>
                 {comment.authorEmail && (
-                  <span className="text-xs text-gray-500">{comment.authorEmail}</span>
+                  <span className="text-xs text-stone-500">{comment.authorEmail}</span>
                 )}
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+              <p className="text-sm text-stone-700 dark:text-stone-300 mt-1">
                 {comment.content}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
-                on{" "}
+              <p className="text-xs text-stone-500 mt-1">
+                来自{" "}
                 <Link
                   href={`/posts/${comment.post.slug}`}
-                  className="hover:underline text-blue-600 dark:text-blue-400"
+                  className="text-teal-700 hover:underline dark:text-teal-300"
                 >
                   {comment.post.title}
                 </Link>
-                {" "}&middot; {new Date(comment.createdAt).toLocaleDateString()}
+                {" "}· {new Date(comment.createdAt).toLocaleDateString("zh-CN")}
               </p>
               {comment.parent && (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Reply to: {comment.parent.authorName} — {comment.parent.content.slice(0, 80)}...
+                <p className="text-xs text-stone-400 mt-1">
+                  回复 {comment.parent.authorName}：{comment.parent.content.slice(0, 80)}...
                 </p>
               )}
               {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-gray-700">
+                <div className="mt-3 border-l-2 border-stone-200 pl-3 dark:border-stone-700">
                   {comment.replies.map((reply) => (
-                    <div key={reply.id} className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    <div key={reply.id} className="text-xs text-stone-600 dark:text-stone-400 mt-1">
                       <span className="font-medium">{reply.authorName}</span>: {reply.content}
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex shrink-0 items-center gap-2">
               <span
                 className={`text-xs px-1.5 py-0.5 rounded ${
                   comment.approved
-                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                    : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+                    ? "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300"
+                    : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
                 }`}
               >
-                {comment.approved ? "Approved" : "Pending"}
+                {comment.approved ? "已通过" : "待审核"}
               </span>
               {!comment.approved && (
                 <button
                   onClick={() => toggleApprove(comment)}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-xs text-teal-700 hover:underline dark:text-teal-300"
                 >
-                  Approve
+                  通过
                 </button>
               )}
               <button
                 onClick={() => deleteComment(comment.id)}
-                className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                className="text-xs text-red-600 hover:underline dark:text-red-300"
               >
-                Delete
+                删除
               </button>
             </div>
           </div>

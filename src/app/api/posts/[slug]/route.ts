@@ -29,7 +29,7 @@ export async function GET(
 }
 
 export const PUT = auth(async (request, { params }) => {
-  if (!request.auth) {
+  if (request.auth?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -39,7 +39,7 @@ export const PUT = auth(async (request, { params }) => {
 
   const existing = await prisma.post.findUnique({ where: { slug } });
   if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "文章不存在" }, { status: 404 });
   }
 
   // Disconnect all existing tags if updating tags
@@ -47,24 +47,33 @@ export const PUT = auth(async (request, { params }) => {
     await prisma.postTag.deleteMany({ where: { postId: existing.id } });
   }
 
-  const post = await prisma.post.update({
-    where: { id: existing.id },
-    data: {
-      title: title ?? existing.title,
-      slug: newSlug ?? slug,
-      content: content ?? existing.content,
-      excerpt: excerpt !== undefined ? excerpt : existing.excerpt,
-      coverImage: coverImage !== undefined ? coverImage : existing.coverImage,
-      published: published !== undefined ? published : existing.published,
-      tags: tagIds?.length
-        ? { create: tagIds.map((tagId: string) => ({ tagId })) }
-        : undefined,
-    },
-    include: {
-      author: { select: { name: true, email: true } },
-      tags: { include: { tag: true } },
-    },
-  });
+  const post = await prisma.post
+    .update({
+      where: { id: existing.id },
+      data: {
+        title: title ?? existing.title,
+        slug: newSlug ?? slug,
+        content: content ?? existing.content,
+        excerpt: excerpt !== undefined ? excerpt : existing.excerpt,
+        coverImage: coverImage !== undefined ? coverImage : existing.coverImage,
+        published: published !== undefined ? published : existing.published,
+        tags: tagIds?.length
+          ? { create: tagIds.map((tagId: string) => ({ tagId })) }
+          : undefined,
+      },
+      include: {
+        author: { select: { name: true, email: true } },
+        tags: { include: { tag: true } },
+      },
+    })
+    .catch(() => null);
+
+  if (!post) {
+    return NextResponse.json(
+      { error: "保存失败，可能是链接别名已经存在" },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json({
     ...post,
@@ -73,14 +82,14 @@ export const PUT = auth(async (request, { params }) => {
 });
 
 export const DELETE = auth(async (request, { params }) => {
-  if (!request.auth) {
+  if (request.auth?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { slug } = await (params as Promise<{ slug: string }>);
   const existing = await prisma.post.findUnique({ where: { slug } });
   if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "文章不存在" }, { status: 404 });
   }
 
   await prisma.post.delete({ where: { id: existing.id } });

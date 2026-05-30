@@ -12,6 +12,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       AUTH_URL: ${{ secrets.AUTH_URL }}
+      AUTH_TRUST_HOST: "true"
     steps:
       - uses: actions/checkout@v4
 

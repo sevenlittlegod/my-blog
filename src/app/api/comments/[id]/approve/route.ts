@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
 export const PUT = auth(async (request, { params }) => {
-  if (!request.auth) {
+  if (request.auth?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,7 +17,7 @@ export const PUT = auth(async (request, { params }) => {
 });
 
 export const DELETE = auth(async (request, { params }) => {
-  if (!request.auth) {
+  if (request.auth?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

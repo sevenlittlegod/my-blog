@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { slugify } from "@/lib/slug";
 
 export async function GET(request: NextRequest) {
   const showAll = request.nextUrl.searchParams.get("all") === "true";
@@ -25,20 +26,16 @@ export async function GET(request: NextRequest) {
 }
 
 export const POST = auth(async (request) => {
-  if (!request.auth) {
+  if (request.auth?.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { name } = await request.json();
   if (!name?.trim()) {
-    return NextResponse.json({ error: "Tag name required" }, { status: 400 });
+    return NextResponse.json({ error: "标签名称不能为空" }, { status: 400 });
   }
 
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+  const slug = slugify(name, "tag");
 
   const tag = await prisma.tag.upsert({
     where: { slug },

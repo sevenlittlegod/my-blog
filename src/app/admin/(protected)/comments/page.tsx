@@ -16,7 +16,12 @@ export default async function AdminCommentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Comments</h1>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">评论审核</h1>
+        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
+          查看访客留言，处理待审核评论和回复。
+        </p>
+      </div>
       <AdminCommentList initialComments={JSON.parse(JSON.stringify(comments))} />
     </div>
   );
