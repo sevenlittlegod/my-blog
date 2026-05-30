@@ -67,8 +67,30 @@ jobs:
           script: |
             cd ${{ secrets.SSH_TARGET }}
             echo "deployed revision: $(cat .deploy_revision 2>/dev/null || echo missing)"
+            echo "deploy directory: $(pwd)"
             test -f server.js
             test -d .next/static
-            pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js --update-env
+            pm2 delete my-blog || true
+            pm2 start ecosystem.config.js --update-env
             pm2 save
             pm2 list
+            pm2 describe my-blog
+            sleep 3
+            node --input-type=module - <<'NODE'
+            const assert = async (path, expectedStatus, expectedText) => {
+              const response = await fetch(`http://127.0.0.1:3000${path}`, {
+                redirect: "manual",
+              });
+              const body = await response.text();
+              console.log(`${path} -> ${response.status}`);
+              if (response.status !== expectedStatus) {
+                throw new Error(`${path} returned ${response.status}, expected ${expectedStatus}`);
+              }
+              if (expectedText && !body.includes(expectedText)) {
+                throw new Error(`${path} did not include ${expectedText}`);
+              }
+            };
+
+            await assert("/", 200, "林葛由");
+            await assert("/admin/login", 200, "林葛由");
+            NODE

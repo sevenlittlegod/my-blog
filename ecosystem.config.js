@@ -1,6 +1,7 @@
 module.exports = {
   apps: [{
     name: "my-blog",
+    cwd: __dirname,
     script: "server.js",
     instances: 1,
     exec_mode: "fork",
