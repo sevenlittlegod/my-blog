@@ -39,11 +39,22 @@ jobs:
 
       - run: npm run package:standalone
 
+      - name: Prepare deploy bundle
+        run: |
+          rm -rf deploy-bundle
+          mkdir -p deploy-bundle
+          cp -a .next/standalone/. deploy-bundle/
+          cp ecosystem.config.js deploy-bundle/ecosystem.config.js
+          echo "${GITHUB_SHA}" > deploy-bundle/.deploy_revision
+          test -f deploy-bundle/server.js
+          test -d deploy-bundle/.next/static
+          ls -la deploy-bundle | sed -n '1,40p'
+
       - uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
           ARGS: "-rlgoDzvc -i --delete --exclude='.env'"
-          SOURCE: ".next/standalone/ ecosystem.config.js"
+          SOURCE: "deploy-bundle/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USER }}
           TARGET: ${{ secrets.SSH_TARGET }}
@@ -55,5 +66,9 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ secrets.SSH_TARGET }}
-            pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+            echo "deployed revision: $(cat .deploy_revision 2>/dev/null || echo missing)"
+            test -f server.js
+            test -d .next/static
+            pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js --update-env
             pm2 save
+            pm2 list
